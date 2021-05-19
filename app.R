@@ -10,10 +10,38 @@ library(ggpubr)
 #                   Yield = c(5.4, 4.065, 4.8), Cost = c(98.33, 28.00, 42), Return = c(91.02, 300, 225), Milk = c(1.278, 1.048, 1.1))
 df1 <- read_csv("data/wholeFarm.csv")
 df2 <- read_csv("data/plotData.csv")
+# data for comparision chart
+#1. compare all values to the greatest value in each category so that everything is on the same axis
+compare_df <- df1 %>%
+    mutate(PI_ratio = PI/max(PI),
+           Erosion_ratio = Erosion/max(Erosion),
+           Yield_ratio = Yield/max(Yield),
+           Cost_ratio = Cost/max(Cost),
+           Return_ratio = Return/max(Return),
+           Milk_ratio = Milk/max(Milk)) %>%
+    select(-c(PI:Milk)) %>%
+    rename(Return = Return_ratio,
+           Cost = Cost_ratio,
+           Milk = Milk_ratio,
+           Yield = Yield_ratio,
+           PI = PI_ratio,
+           Erosion = Erosion_ratio) %>%
+    pivot_longer(!scenario, names_to = "indicators", values_to = "ratio")
+
 
 color_table <- tibble(
-    scenario = c("baseline", "Scenario A", "Scenario B"),
-    Color = c("#334856",  "#8C9C47", "#C5D54F")
+    #scenario = c("baseline", "Scenario A", "Scenario B"),
+    Color = c("#334856", "#8C9C47", "#C5D54F")
+)
+# darkslategrey, darkseagreen4, darkseagreen3
+#khaki4, khaki3, khaki2
+#darkolivegreen2, darkolivegreen3, darkolivegreen4
+
+color_table2 <- tibble(
+    #scenario = c("baseline", "Scenario A", "Scenario B"),
+    Color = c("#334856", "#225B81", "#056DB3",
+              "#8C9C47", "#B1D025", "#C8F014",
+              "#C5D54F", "#D9EA57", "#D2DB8A")
 )
 
 # Define UI for application that draws a histogram
@@ -26,13 +54,18 @@ ui <- dashboardPage(
     
     dashboardSidebar(
         sidebarMenu(id = "sidebarmenu",
-            menuItem("Economic Indicators", 
+            menuItem("Economic Indicators", icon = icon("bar-chart-o"),
                      menuSubItem('Whole Farm Analysis',
                                  tabName = "wholeEcon"),
-                     menuSubItem('Plot by Plot Analysis',
+                     menuSubItem('Field Analysis',
                                  tabName = "plotEcon")),
-            menuItem("Soil Indicators", tabName = "soil"),
-            menuItem("Biodiversity Indicators", tabName = "bio")
+            menuItem("Soil Indicators", icon = icon("bar-chart-o"),
+                     menuSubItem('Whole Farm Analysis',
+                                 tabName = "wholeSoil"),
+                     menuSubItem('Field Analysis',
+                                 tabName = "plotSoil")),
+            menuItem("Biodiversity Indicators", tabName = "bio", icon = icon("bar-chart-o")),
+            menuItem("Compare Across", tabName = "ecoServ", icon = icon("bar-chart-0"))
         )
     ),
     
@@ -69,14 +102,23 @@ ui <- dashboardPage(
                         column(6, 
                                plotOutput("plotEcon4")))
             ),
-            tabItem(tabName = "soil",
+            tabItem(tabName = "wholeSoil",
                     fluidRow(
                         column(6,
                                plotOutput("soil1")),
                         column(6, 
                                plotOutput("soil2")))
             ),
-            tabItem(tabName = "bio")
+            tabItem(tabName = "plotSoil",
+                    fluidRow(
+                        column(6,
+                               plotOutput("plotSoil1")),
+                        column(6, 
+                               plotOutput("plotSoil2")))
+            ),
+            tabItem(tabName = "bio"),
+            tabItem(tabName = "ecoServ",
+                    plotOutput("compare"))
         ))
 )
 
@@ -258,6 +300,56 @@ server <- function(input, output) {
                 panel.background = element_rect(fill = "white"),
                 legend.position = "none",
                 plot.title = element_text(hjust = 0.5))
+    })
+    output$plotSoil1 <- renderPlot({
+        ggplot(df2, aes(x = scenario, y = PI)) +
+            geom_bar(aes(fill = field), position = "dodge", stat="identity") +
+            geom_hline(yintercept = 0)+
+            scale_fill_manual(values = color_table$Color) +
+            ggtitle("Phosphorous loss")+
+            ylab("Pounds per Acre")+
+            theme(
+                text = element_text(size = 18),
+                axis.title.x = element_blank(),
+                axis.ticks.x = element_blank(),
+                axis.line.y = element_line(color = "lightgrey"),
+                panel.background = element_rect(fill = "white"),
+                legend.position = "none",
+                plot.title = element_text(hjust = 0.5))
+    })
+    output$plotSoil2 <- renderPlot({
+        ggplot(df2, aes(x = scenario, y = Erosion)) +
+            geom_bar(aes(fill = field), position = "dodge", stat="identity") +
+            geom_hline(yintercept = 0)+
+            scale_fill_manual(values = color_table$Color) +
+            ggtitle("Soil Loss") +
+            ylab("Tons per Acre")+
+            theme(
+                text = element_text(size = 18),
+                axis.title.x = element_blank(),
+                axis.ticks.x = element_blank(),
+                axis.line.y = element_line(color = "lightgrey"),
+                panel.background = element_rect(fill = "white"),
+                legend.position = c(0.85,0.9),
+                plot.title = element_text(hjust = 0.5))
+    })
+    
+    output$compare <- renderPlot({
+        
+        ggplot(compare_df, aes(x = indicators, y = ratio, fill = scenario)) +
+            geom_col(position = "dodge") +
+            scale_fill_manual(values = color_table$Color) +
+            #coord_flip() +
+            theme(
+                panel.grid.minor.x = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.text = element_text(size=22),
+                axis.title.y = element_text(size = 18),
+                legend.title = element_blank(),
+                legend.text = element_text(size = 16)
+            ) +
+            xlab("") +
+            ylab("Ratio")
     })
     
    
